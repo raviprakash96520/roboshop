@@ -56,7 +56,7 @@ module "eks" {
     # }
     green = {
       min_size      = 3
-      max_size      = 10
+      max_size      = 3
       desired_size  = 3
       capacity_type = "SPOT"
       iam_role_additional_policies = {
