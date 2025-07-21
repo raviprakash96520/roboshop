@@ -1,5 +1,5 @@
 deployment:
-  imageURL: 315069654700.dkr.ecr.us-east-1.amazonaws.com/roboshop/dev/shipping
+  imageURL: 419885643439.dkr.ecr.us-east-1.amazonaws.com/roboshop/dev/shipping
   imageVersion: IMAGE_VERSION
 hpa:
   cpuUtilization: 20
