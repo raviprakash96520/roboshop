@@ -1,104 +1,91 @@
-def call(Map configMap){
+def call(Map configMap) {
     pipeline {
         agent {
             label 'AGENT-1'
         }
-        options{
+
+        options {
             timeout(time: 30, unit: 'MINUTES')
             disableConcurrentBuilds()
-            //retry(1)
         }
-        parameters{
+
+        parameters {
             booleanParam(name: 'deploy', defaultValue: false, description: 'Select to deploy or not')
         }
+
         environment {
-            appVersion = '' // this will become global, we can use across pipeline
+            appVersion = '' // global variable across pipeline
             region = 'us-east-1'
             account_id = '419885643439'
             project = configMap.get("project")
             environment = 'dev'
             component = configMap.get("component")
-          
-            
+            componentPath = "roboshop-ci/${component}" // dynamic path for each Node.js component
         }
 
         stages {
             stage('Read the version') {
                 steps {
-                    script{
-                        sh 'pwd && ls -l'
-                       
-                        def packageJson = readJSON file: 'package.json'
-                        appVersion = packageJson.version
-                        echo "App version: ${appVersion}"
+                    dir("${componentPath}") {
+                        script {
+                            sh 'pwd && ls -l'
+                            def packageJson = readJSON file: 'package.json'
+                            appVersion = packageJson.version
+                            echo "App version: ${appVersion}"
+                        }
                     }
                 }
             }
+
             stage('Install Dependencies') {
                 steps {
-                    sh 'npm install'
-                }
-            }
-            /* stage('SonarQube analysis') {
-                environment {
-                    SCANNER_HOME = tool 'sonar-6.0' //scanner config
-                }
-                steps {
-                    // sonar server injection
-                    withSonarQubeEnv('sonar-6.0') {
-                        sh '$SCANNER_HOME/bin/sonar-scanner'
-                        //generic scanner, it automatically understands the language and provide scan results
+                    dir("${componentPath}") {
+                        sh 'npm install'
                     }
                 }
             }
 
-            stage('Quality Gate') {
-                steps {
-                    timeout(time: 5, unit: 'MINUTES') {
-                        waitForQualityGate abortPipeline: true
-                    }
-                }
-            } */
             stage('Docker build') {
-                
                 steps {
-                    withAWS(region: 'us-east-1', credentials: "aws-creds-${environment}") {
-                        sh """
-                        aws ecr get-login-password --region ${region} | docker login --username AWS --password-stdin ${account_id}.dkr.ecr.us-east-1.amazonaws.com
+                    dir("${componentPath}") {
+                        withAWS(region: "${region}", credentials: "aws-creds-${environment}") {
+                            sh """
+                            aws ecr get-login-password --region ${region} | docker login --username AWS --password-stdin ${account_id}.dkr.ecr.${region}.amazonaws.com
 
-                        docker build -t ${account_id}.dkr.ecr.us-east-1.amazonaws.com/${project}/${environment}/${component}:${appVersion} .
+                            docker build -t ${account_id}.dkr.ecr.${region}.amazonaws.com/${project}/${environment}/${component}:${appVersion} .
 
-                        docker images
+                            docker images
 
-                        docker push ${account_id}.dkr.ecr.us-east-1.amazonaws.com/${project}/${environment}/${component}:${appVersion}
-                        """
+                            docker push ${account_id}.dkr.ecr.${region}.amazonaws.com/${project}/${environment}/${component}:${appVersion}
+                            """
+                        }
                     }
                 }
             }
-            stage('Deploy'){
-                when{
-                    expression {params.deploy}
-                }
 
-                steps{
+            stage('Deploy') {
+                when {
+                    expression { params.deploy }
+                }
+                steps {
                     build job: "../${component}-cd", parameters: [
-                        string(name: 'version', value: "$appVersion"),
-                        string(name: 'ENVIRONMENT', value: "dev"),
+                        string(name: 'version', value: "${appVersion}"),
+                        string(name: 'ENVIRONMENT', value: "${environment}")
                     ], wait: true
                 }
             }
         }
 
         post {
-            always{
-                echo "This sections runs always"
+            always {
+                echo "This section runs always"
                 deleteDir()
             }
-            success{
-                echo "This section run when pipeline success"
+            success {
+                echo "This section runs when pipeline succeeds"
             }
-            failure{
-                echo "This section run when pipeline failure"
+            failure {
+                echo "This section runs when pipeline fails"
             }
         }
     }
