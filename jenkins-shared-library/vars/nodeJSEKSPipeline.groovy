@@ -18,7 +18,7 @@ def call(Map configMap){
             project = configMap.get("project")
             environment = 'dev'
             component = configMap.get("component")
-            path = 'roboshop-ci/catalogue'
+          
             
         }
 
@@ -27,7 +27,7 @@ def call(Map configMap){
                 steps {
                     script{
                         sh 'pwd && ls -l'
-                        sh 'cd roboshop-ci/$env.component'
+                       
                         def packageJson = readJSON file: 'package.json'
                         appVersion = packageJson.version
                         echo "App version: ${appVersion}"
