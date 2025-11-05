@@ -27,8 +27,8 @@ def call(Map configMap){
                 steps {
                     script{
                         sh 'pwd && ls -l'
-
-                        def packageJson = readJSON file: env.path/'package.json'
+                        sh 'cd roboshop-ci/$env.component'
+                        def packageJson = readJSON file: 'package.json'
                         appVersion = packageJson.version
                         echo "App version: ${appVersion}"
                     }
